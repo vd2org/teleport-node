@@ -1,0 +1,157 @@
+name: BUILDER
+
+on:
+  schedule:
+    - cron:  '* 4 * * *'
+
+jobs:
+
+  check:
+    name: "Check for new releases"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "Install dependencies"
+        run: |
+          pip install --upgrade pip
+          pip install --force -r tools/requirements.txt
+
+      - name: "Check for new releases"
+        id: check
+        run: |
+          python tools/check_releases.py ${{ github.repository }} gravitational/teleport > out.json
+          echo "Found releases: $(cat out.json)"
+          echo "matrix=$(cat out.json)" >> $GITHUB_OUTPUT
+          if [ "$(cat out.json)" == "[]" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+      matrix: ${{ steps.check.outputs.matrix }}
+
+
+  build:
+    name: "Build ${{ matrix.version }}"
+    if: needs.check.outputs.exists == 'true'
+    needs: check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        version: ${{ fromJSON(needs.check.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "Install dependencies"
+        run: |
+          pip install --upgrade pip
+          pip install --force -r tools/requirements.txt
+
+      - name: "Configure git"
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: "Bump version"
+        run: |
+          CURRENT_VERSION=$(cat VERSION)
+          
+          git checkout -b build-${{ matrix.version }}
+          
+          python tools/bump_version.py VERSION ${CURRENT_VERSION} ${{ matrix.version }}
+          python tools/bump_version.py README.md ${CURRENT_VERSION} ${{ matrix.version }}
+          python tools/bump_version.py compose.yml ${CURRENT_VERSION} ${{ matrix.version }}
+          
+          git commit -am "Bump version to ${{ matrix.version }}"
+
+      - name: "Configure docker"
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker buildx create --name local-build
+          docker buildx use local-build
+
+      - name: "Build and push image"
+        run: |
+          export IMAGE=ghcr.io/${{ github.repository }}:${{ matrix.version }}
+          export PLATFORMS=linux/amd64,linux/arm64
+
+          docker buildx b --progress plain --provenance false --platform $PLATFORMS --build-arg VERSION=${{ matrix.version }} -t $IMAGE --push .
+
+      - name: "Push branch and tag"
+        run: |
+          git push -f --set-upstream origin build-${{ matrix.version }}
+          git tag -f ${{ matrix.version }}
+          git push -f origin ${{ matrix.version }}
+
+      - name: "Create release"
+        run: |
+          python tools/create_release.py ${{ secrets.GITHUB_TOKEN }} ${{ github.repository }} ${{ matrix.version }} README.md
+
+
+  update:
+    name: "Update branches"
+    if: needs.check.outputs.exists == 'true'
+    needs:
+      - check
+      - build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: "Configure git"
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: "Update master"
+        run: |
+          git checkout master
+          
+          MASTER_VERSION=$(cat VERSION)
+          RELEASES=$(echo '${{ needs.check.outputs.matrix }}' | jq -r '.[]')
+          
+          for release in $RELEASES; do
+            cmp=$(python tools/compare_versions.py $MASTER_VERSION $release)
+            if [ "$cmp" == "gt" ]; then
+              git merge -X theirs --no-ff --no-edit origin/build-${release}
+            fi
+          done
+          
+          git push
+
+      - name: "Update releases"
+        run: |
+          git checkout releases
+          
+          RELEASES=$(echo '${{ needs.check.outputs.matrix }}' | jq -r '.[]')
+          
+          for release in $RELEASES; do
+            git merge -X theirs --no-ff --no-edit origin/build-${release}
+            git push origin --delete build-${release}          
+          done
+          
+          git push

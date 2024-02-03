@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+
+  teleport-node:
+    image: ghcr.io/vd2org/teleport-node:v15.0.0
+    container_name: teleport-node
+    privileged: true
+    network_mode: host
+    ipc: host
+    pid: host
+    volumes:
+      - /:/rootfs
+    restart: always
+    environment:
+      - HOST_ROOT=${HOST_ROOT:-}
+      - INIT_PROXY_SERVER=${INIT_PROXY_SERVER:-}
+      - INIT_TOKEN=${INIT_TOKEN:-}

@@ -1,0 +1,44 @@
+#!/bin/sh
+
+if [ -z "${HOST_ROOT}" ]; then
+  echo "HOST_ROOT variable is not found! Please set it in the environment!"
+  echo "Exiting..."
+  sleep 3
+  exit 1
+fi
+
+mkdir -p "/rootfs${HOST_ROOT}/etc"
+mkdir -p "/rootfs${HOST_ROOT}/bin"
+mkdir -p "/rootfs${HOST_ROOT}/data"
+
+# Copy fresh binary to host if needed
+if ! sha1sum --quiet < "/rootfs${HOST_ROOT}/bin/teleport" -c /teleport.sha1; then
+  cp /teleport "/rootfs${HOST_ROOT}/bin/teleport"
+fi
+
+# Create default config file if host doesn't have one
+if [ ! -f "/rootfs${HOST_ROOT}/etc/config.yml" ]; then
+  echo "No config file found, starting a fresh node..."
+
+  if [ -z "${INIT_TOKEN}" ]; then
+    echo "INIT_TOKEN variable is not found! Please set it in the environment!"
+    echo "Exiting..."
+    sleep 3
+    exit 1
+  fi
+
+  if [ -z "${INIT_PROXY_SERVER}" ]; then
+    echo "INIT_PROXY_SERVER variable is not found! Please set it in the environment!"
+    echo "Exiting..."
+    sleep 3
+    exit 1
+  fi
+
+  # Generate a new config file
+  chroot /rootfs "${HOST_ROOT}/bin/teleport" configure --roles node --proxy "${INIT_PROXY_SERVER}" --data-dir "${HOST_ROOT}/data" > "/rootfs${HOST_ROOT}/etc/config.yml"
+
+  # Start the node with the token
+  exec chroot /rootfs "${HOST_ROOT}/bin/teleport" start -r node "--token=${INIT_TOKEN}" -c "${HOST_ROOT}/etc/config.yml"
+fi
+
+exec chroot /rootfs "${HOST_ROOT}/bin/teleport" start -r node -c "${HOST_ROOT}/etc/config.yml"
