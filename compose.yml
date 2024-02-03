@@ -13,6 +13,5 @@ services:
       - /:/rootfs
     restart: always
     environment:
-      - HOST_ROOT=${HOST_ROOT:-}
       - INIT_PROXY_SERVER=${INIT_PROXY_SERVER:-}
       - INIT_TOKEN=${INIT_TOKEN:-}
