@@ -58,7 +58,7 @@ curl https://raw.githubusercontent.com/vd2org/teleport-node/v0.0.0/compose.yml |
 INIT_TOKEN=ddnp9yobukji84aturqa59oiqsxux896 INIT_PROXY_SERVER=teleport.example.com:443 docker compose -p teleport-node -f - up -d
 ```
 
-### Upgrading an Existing container
+### Upgrading an existing container
 
 To upgrade an existing image, use the following command:
 
