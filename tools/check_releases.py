@@ -17,7 +17,7 @@ def get_releases(repo: str, limit: int = 10, final_only: bool = False) -> set[st
 
 
 def run(my_repo: str, foreign_repo: str) -> tuple[str, ...]:
-    foreign_releases = get_releases(foreign_repo, 30, final_only=True)
+    foreign_releases = get_releases(foreign_repo, 10, final_only=True)
     my_releases = get_releases(my_repo, 100)
 
     return tuple(sorted(foreign_releases - my_releases))
