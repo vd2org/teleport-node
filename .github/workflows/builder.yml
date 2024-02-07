@@ -1,9 +1,6 @@
 name: BUILDER
 
 on:
-  push:
-    branches:
-      - 'master'
   schedule:
     - cron:  '44 4 * * *'
 
@@ -86,19 +83,19 @@ jobs:
           
           git commit -am "Bump version to ${{ matrix.version }}"
 
-#      - name: "Configure docker"
-#        run: |
-#          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-#          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-#          docker buildx create --name local-build
-#          docker buildx use local-build
-#
-#      - name: "Build and push image"
-#        run: |
-#          export IMAGE=ghcr.io/${{ github.repository }}:${{ matrix.version }}
-#          export PLATFORMS=linux/amd64,linux/arm64
-#
-#          docker buildx b --progress plain --provenance false --platform $PLATFORMS --build-arg VERSION=${{ matrix.version }} -t $IMAGE --push .
+      - name: "Configure docker"
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker buildx create --name local-build
+          docker buildx use local-build
+
+      - name: "Build and push image"
+        run: |
+          export IMAGE=ghcr.io/${{ github.repository }}:${{ matrix.version }}
+          export PLATFORMS=linux/amd64,linux/arm64
+
+          docker buildx b --progress plain --provenance false --platform $PLATFORMS --build-arg VERSION=${{ matrix.version }} -t $IMAGE --push .
 
       - name: "Push branch and tag"
         run: |
