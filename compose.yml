@@ -3,7 +3,7 @@ version: "3.8"
 services:
 
   teleport-node:
-    image: ghcr.io/vd2org/teleport-node:v15.3.7
+    image: ghcr.io/vd2org/teleport-node:v15.4.0
     container_name: teleport-node
     privileged: true
     network_mode: host
