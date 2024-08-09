@@ -46,7 +46,7 @@ docker run -d --name teleport-node \
   --restart=always \
   -e "INIT_PROXY_SERVER=teleport.example.com:443" \
   -e "INIT_TOKEN=ddnp9yobukji84aturqa59oiqsxux896" \
-  ghcr.io/vd2org/teleport-node:v16.1.4
+  ghcr.io/vd2org/teleport-node:v14.3.23
 ```
 
 ### Starting with Docker Compose
@@ -54,7 +54,7 @@ docker run -d --name teleport-node \
 You can also start the teleport node using Docker Compose with the following command:
 
 ```shell
-curl https://raw.githubusercontent.com/vd2org/teleport-node/v16.1.4/compose.yml |
+curl https://raw.githubusercontent.com/vd2org/teleport-node/v14.3.23/compose.yml |
 INIT_TOKEN=ddnp9yobukji84aturqa59oiqsxux896 INIT_PROXY_SERVER=teleport.example.com:443 docker compose -p teleport-node -f - up -d
 ```
 
@@ -63,5 +63,5 @@ INIT_TOKEN=ddnp9yobukji84aturqa59oiqsxux896 INIT_PROXY_SERVER=teleport.example.c
 To upgrade an existing image, use the following command:
 
 ```shell
-curl https://raw.githubusercontent.com/vd2org/teleport-node/v16.1.4/compose.yml | docker compose -p teleport-node -f - up -d
+curl https://raw.githubusercontent.com/vd2org/teleport-node/v14.3.23/compose.yml | docker compose -p teleport-node -f - up -d
 ```
